@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoClassify - Smart Waste Sorting</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-leaf"></i> EcoClassify
+        </div>
+    </header>
+
+    <main>
+        <div class="upload-section">
+            <div class="drop-zone" id="drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <h3>Upload Waste Image</h3>
+                <p>Drag & drop or click to browse</p>
+                <input type="file" id="file-input" hidden accept="image/*">
+                <p class="format-note">Supports JPG, PNG, JPEG</p>
+                <div id="preview-container" class="hidden">
+                    <img id="image-preview" src="" alt="Preview">
+                    <canvas id="detection-canvas" class="hidden"></canvas>
+                </div>
+            </div>
+            <button id="submit-btn" class="primary-btn" disabled>
+                <i class="fa-solid fa-microchip"></i> Analyze Image
+            </button>
+        </div>
+
+        <div class="results-section hidden" id="results-section">
+            <h2>Analysis Results</h2>
+            
+            <div id="multi-warning" class="hidden" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 600;">
+                <i class="fa-solid fa-triangle-exclamation"></i> For best accuracy, upload image with a single waste item.
+            </div>
+            
+            <!-- Classification Results -->
+            <div id="classification-results" class="result-card">
+                <div class="result-header">
+                    <div class="class-info">
+                        <span class="label">Predicted Class</span>
+                        <h3 id="pred-class">Plastic Bottle</h3>
+                    </div>
+                    <div class="confidence-info">
+                        <span class="label">Confidence</span>
+                        <h3 id="pred-conf">98%</h3>
+                    </div>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="conf-bar"></div>
+                </div>
+
+                <div class="suggestion-box">
+                    <div class="sugg-header">
+                        <i class="fa-solid fa-recycle"></i> 
+                        <h4 id="sugg-category">Recyclable</h4>
+                    </div>
+                    <p id="sugg-text">Please ensure it is empty and clean before recycling.</p>
+                </div>
+            </div>
+
+            <!-- Detection Results -->
+            <div id="detection-results" class="result-card hidden">
+                <h3>Detected Objects</h3>
+                <ul id="detection-list" class="detection-list">
+                    <!-- Dynamic List -->
+                </ul>
+            </div>
+            
+        </div>
+        
+        <!-- Loading overlay -->
+        <div class="loader-overlay hidden" id="loader">
+            <div class="spinner"></div>
+            <p>Analyzing...</p>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
