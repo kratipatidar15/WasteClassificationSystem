@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from PIL import Image
 from ultralytics import YOLO
@@ -53,9 +54,7 @@ except Exception as e:
     print(f"Failed to load YOLO model: {e}")
     yolo_model = None
 
-@app.get("/")
-def read_root():
-    return {"message": "Waste Classification API is running."}
+
 
 @app.post("/predict")
 async def predict_waste(file: UploadFile = File(...)):
@@ -122,6 +121,11 @@ async def predict_waste(file: UploadFile = File(...)):
         }
     except Exception as e:
         return {"error": str(e)}
+
+# Serve frontend statically
+frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

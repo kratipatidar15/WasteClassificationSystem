@@ -22,7 +22,7 @@ const detectionList = document.getElementById('detection-list');
 let selectedFile = null;
 
 // Backend URL
-const API_URL = 'http://localhost:8000';
+const API_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin;
 
 
 // File Handling
