@@ -2,7 +2,7 @@ opencv-python-headless
 fastapi
 uvicorn
 python-multipart
-tensorflow
+tensorflow-cpu
 pillow
 ultralytics
 scikit-learn
