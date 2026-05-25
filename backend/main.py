@@ -26,38 +26,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load Classification Model
+# Define model paths
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'waste_classifier.h5')
 CLASSES_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'classes.txt')
 
+# Global variables for lazy loading
 model = None
+yolo_model = None
 class_names = []
+models_loaded = False
 
-if os.path.exists(MODEL_PATH):
-    print("Loading Classification Model...")
-    model = tf.keras.models.load_model(MODEL_PATH)
-    if os.path.exists(CLASSES_PATH):
-        with open(CLASSES_PATH, 'r') as f:
-            class_names = [line.strip() for line in f.readlines()]
+def load_models():
+    global model, yolo_model, class_names, models_loaded
+    if models_loaded:
+        return
+        
+    print("Lazy loading models...")
+    # Load Classification Model
+    if os.path.exists(MODEL_PATH):
+        print("Loading Classification Model...")
+        model = tf.keras.models.load_model(MODEL_PATH)
+        if os.path.exists(CLASSES_PATH):
+            with open(CLASSES_PATH, 'r') as f:
+                class_names = [line.strip() for line in f.readlines()]
+        else:
+            class_names = ["battery", "biological", "brown-glass", "cardboard", "clothes", 
+                           "green-glass", "metal", "paper", "plastic", "shoes", "trash", "white-glass"]
     else:
-        # Fallback if classes.txt is not found
-        class_names = ["battery", "biological", "brown-glass", "cardboard", "clothes", 
-                       "green-glass", "metal", "paper", "plastic", "shoes", "trash", "white-glass"]
-else:
-    print(f"Warning: Model not found at {MODEL_PATH}")
+        print(f"Warning: Model not found at {MODEL_PATH}")
 
-# Load YOLO Model
-try:
-    print("Loading YOLOv8 Model...")
-    yolo_model = YOLO("yolov8n.pt")  # Downloads if not present
-except Exception as e:
-    print(f"Failed to load YOLO model: {e}")
-    yolo_model = None
-
-
+    # Load YOLO Model
+    try:
+        print("Loading YOLOv8 Model...")
+        yolo_model = YOLO("yolov8n.pt")
+    except Exception as e:
+        print(f"Failed to load YOLO model: {e}")
+        yolo_model = None
+        
+    models_loaded = True
 
 @app.post("/predict")
 async def predict_waste(file: UploadFile = File(...)):
+    load_models()
     if model is None:
         return {"error": "Classification model is not loaded"}
         
