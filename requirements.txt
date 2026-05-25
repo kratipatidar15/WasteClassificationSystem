@@ -2,7 +2,7 @@ opencv-python-headless
 fastapi
 uvicorn
 python-multipart
-tensorflow-cpu
+tensorflow==2.15.0
 pillow
 ultralytics
 scikit-learn
