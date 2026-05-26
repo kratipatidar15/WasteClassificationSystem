@@ -24,6 +24,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # Define model paths
 TFLITE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'waste_classifier.tflite')
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'waste_classifier.h5')
