@@ -22,7 +22,9 @@ const detectionList = document.getElementById('detection-list');
 let selectedFile = null;
 
 // Backend URL
-const API_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin;
+const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+    ? 'http://127.0.0.1:8000'
+    : 'https://waste-classification-system.onrender.com';
 
 
 // File Handling

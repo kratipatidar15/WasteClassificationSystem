@@ -1,13 +1,11 @@
 import io
 import os
 import numpy as np
-import tensorflow as tf
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from PIL import Image
-from ultralytics import YOLO
 
 # Import recycling rules
 try:
@@ -27,38 +25,73 @@ app.add_middleware(
 )
 
 # Define model paths
+TFLITE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'waste_classifier.tflite')
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'waste_classifier.h5')
 CLASSES_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'classes.txt')
 
 # Global variables for lazy loading
-model = None
+tflite_interpreter = None
+tflite_input_details = None
+tflite_output_details = None
+tf_model = None
 yolo_model = None
 class_names = []
 models_loaded = False
 
 def load_models():
-    global model, yolo_model, class_names, models_loaded
+    global tflite_interpreter, tflite_input_details, tflite_output_details, tf_model, yolo_model, class_names, models_loaded
     if models_loaded:
         return
         
     print("Lazy loading models...")
-    # Load Classification Model
-    if os.path.exists(MODEL_PATH):
-        print("Loading Classification Model...")
-        model = tf.keras.models.load_model(MODEL_PATH)
-        if os.path.exists(CLASSES_PATH):
-            with open(CLASSES_PATH, 'r') as f:
-                class_names = [line.strip() for line in f.readlines()]
-        else:
-            class_names = ["battery", "biological", "brown-glass", "cardboard", "clothes", 
-                           "green-glass", "metal", "paper", "plastic", "shoes", "trash", "white-glass"]
+    
+    # Load Class Names
+    if os.path.exists(CLASSES_PATH):
+        with open(CLASSES_PATH, 'r') as f:
+            class_names = [line.strip() for line in f.readlines()]
     else:
-        print(f"Warning: Model not found at {MODEL_PATH}")
+        class_names = ["battery", "biological", "brown-glass", "cardboard", "clothes", 
+                       "green-glass", "metal", "paper", "plastic", "shoes", "trash", "white-glass"]
+                       
+    # 1. Try loading TFLite Model
+    if os.path.exists(TFLITE_PATH):
+        try:
+            print("Attempting to load TFLite Model using tflite_runtime...")
+            try:
+                import tflite_runtime.interpreter as tflite
+            except ImportError:
+                print("tflite_runtime not found. Trying to import from tensorflow...")
+                from tensorflow import lite as tflite
+                
+            tflite_interpreter = tflite.Interpreter(model_path=TFLITE_PATH)
+            tflite_interpreter.allocate_tensors()
+            tflite_input_details = tflite_interpreter.get_input_details()
+            tflite_output_details = tflite_interpreter.get_output_details()
+            print("TFLite Model loaded successfully!")
+        except Exception as e:
+            print(f"Failed to load TFLite model: {e}")
+            tflite_interpreter = None
+            
+    # 2. Fallback to original H5 Model (only if TFLite failed or doesn't exist)
+    if tflite_interpreter is None:
+        if os.path.exists(MODEL_PATH):
+            try:
+                print("Fallback: Loading original Keras Classification Model (.h5)...")
+                import tensorflow as tf
+                tf_model = tf.keras.models.load_model(MODEL_PATH)
+                print("Keras Model loaded successfully!")
+            except Exception as e:
+                print(f"Failed to load fallback Keras model: {e}")
+                tf_model = None
+        else:
+            print(f"Warning: Model not found at {MODEL_PATH}")
 
-    # Load YOLO Model
+    # 3. Load YOLO Model
     try:
         print("Loading YOLOv8 Model...")
+        from ultralytics import YOLO
         yolo_model = YOLO("yolov8n.pt")
+        print("YOLOv8 Model loaded successfully!")
     except Exception as e:
         print(f"Failed to load YOLO model: {e}")
         yolo_model = None
@@ -68,7 +101,7 @@ def load_models():
 @app.post("/predict")
 async def predict_waste(file: UploadFile = File(...)):
     load_models()
-    if model is None:
+    if tflite_interpreter is None and tf_model is None:
         return {"error": "Classification model is not loaded"}
         
     try:
@@ -112,10 +145,16 @@ async def predict_waste(file: UploadFile = File(...)):
         img_array = np.array(image_resized) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         
-        # Predict
-        predictions = model.predict(img_array)[0]
+        # Predict using TFLite or Keras fallback
+        if tflite_interpreter is not None:
+            img_array = img_array.astype(np.float32)
+            tflite_interpreter.set_tensor(tflite_input_details[0]['index'], img_array)
+            tflite_interpreter.invoke()
+            predictions = tflite_interpreter.get_tensor(tflite_output_details[0]['index'])[0]
+        else:
+            predictions = tf_model.predict(img_array)[0]
+            
         max_idx = np.argmax(predictions)
-        
         predicted_class = class_names[max_idx]
         confidence = float(predictions[max_idx])
         
